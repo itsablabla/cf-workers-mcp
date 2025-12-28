@@ -1,0 +1,24 @@
+{
+  "name": "@itsablabla/cf-workers-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Cloudflare Workers deployment - adds missing Workers tools to GARZA OS",
+  "type": "module",
+  "bin": {
+    "cf-workers-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "keywords": [
+    "mcp",
+    "cloudflare",
+    "workers",
+    "deployment",
+    "garza-os"
+  ],
+  "author": "Jaden Garza",
+  "license": "MIT"
+}
