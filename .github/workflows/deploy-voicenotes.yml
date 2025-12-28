@@ -1,0 +1,76 @@
+name: Deploy VoiceNotes Worker
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'examples/voicenotes-worker.js'
+      - '.github/workflows/deploy-voicenotes.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Deploy to Cloudflare Workers
+      env:
+        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      run: |
+        echo "🚀 Deploying VoiceNotes Worker..."
+        
+        # Read worker code
+        WORKER_CODE=$(cat examples/voicenotes-worker.js)
+        
+        # Create metadata
+        METADATA='{"main_module":"worker.js","compatibility_date":"2024-01-01","compatibility_flags":[]}'
+        
+        # Create temporary files
+        echo "$METADATA" > /tmp/metadata.json
+        echo "$WORKER_CODE" > /tmp/worker.js
+        
+        # Deploy using curl with multipart form data
+        RESPONSE=$(curl -s -X PUT \
+          "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/voicenotes-tools" \
+          -H "Authorization: Bearer ${CF_API_TOKEN}" \
+          -F "metadata=@/tmp/metadata.json;type=application/json" \
+          -F "worker.js=@/tmp/worker.js;type=application/javascript")
+        
+        # Check if deployment succeeded
+        SUCCESS=$(echo $RESPONSE | jq -r '.success')
+        
+        if [ "$SUCCESS" = "true" ]; then
+          echo "✅ VoiceNotes Worker deployed successfully!"
+          echo "📋 URL: https://voicenotes-tools.jadengarza.workers.dev"
+          
+          # Test deployment
+          echo "🧪 Testing deployment..."
+          sleep 2
+          curl -s https://voicenotes-tools.${CF_ACCOUNT_ID}.workers.dev/health | jq .
+        else
+          echo "❌ Deployment failed!"
+          echo $RESPONSE | jq .
+          exit 1
+        fi
+    
+    - name: Test health endpoint
+      run: |
+        echo "Testing health check..."
+        HEALTH=$(curl -s https://voicenotes-tools.jadengarza.workers.dev/health)
+        STATUS=$(echo $HEALTH | jq -r '.status')
+        
+        if [ "$STATUS" = "ok" ]; then
+          echo "✅ Health check passed!"
+        else
+          echo "⚠️ Health check failed"
+          exit 1
+        fi
